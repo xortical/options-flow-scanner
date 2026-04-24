@@ -1,0 +1,70 @@
+name: Options Flow Scanner
+
+on:
+  # ── Scheduled runs (times are UTC; IST = UTC+5:30) ─────────────────────
+  # Runs at 9:45 AM, 12:00 PM, and 3:15 PM IST on weekdays
+  # Adjust or add/remove times as you like
+  schedule:
+    - cron: "15 4 * * 1-5"   # 9:45 AM IST
+    - cron: "30 6 * * 1-5"   # 12:00 PM IST
+    - cron: "45 9 * * 1-5"   # 3:15 PM IST  (near close — best for day's full flow)
+
+  # ── Manual trigger (run anytime from GitHub Actions tab) ────────────────
+  workflow_dispatch:
+    inputs:
+      expiry_min:
+        description: "Min days to expiry"
+        default: "1"
+      expiry_max:
+        description: "Max days to expiry"
+        default: "90"
+      min_score:
+        description: "Minimum anomaly score (0-100)"
+        default: "35"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to commit the report back to the repo
+
+    steps:
+      # 1. Check out repo (includes watchlist.txt)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 4. Run the scanner
+      - name: Run scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scanner.py \
+            --watchlist watchlist.txt \
+            --output    reports \
+            --min-score ${{ github.event.inputs.min_score || '35' }} \
+            --expiry-days ${{ github.event.inputs.expiry_min || '1' }} ${{ github.event.inputs.expiry_max || '90' }}
+
+      # 5. Commit the generated reports back into the repo
+      #    Reports folder is gitignored for large files; only latest.html/csv committed
+      - name: Commit reports
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/latest.html reports/latest.csv
+          # Also add timestamped files if they exist (optional — remove if you
+          # don't want history of every run committed)
+          git add reports/flow_*.html reports/flow_*.csv 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "📊 Flow report $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push
