@@ -1,0 +1,28 @@
+# Indian Options Flow Scanner — Watchlist
+# One symbol per line. Lines starting with # are ignored.
+# Indices: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY
+# Equities: use NSE ticker exactly as shown on nseindia.com
+
+# ── Indices ──────────────────────────
+NIFTY
+BANKNIFTY
+FINNIFTY
+
+# ── Large Cap ────────────────────────
+RELIANCE
+TCS
+INFY
+HDFCBANK
+ICICIBANK
+SBIN
+WIPRO
+AXISBANK
+KOTAKBANK
+LT
+
+# ── Mid Cap (add/remove freely) ──────
+ZOMATO
+PAYTM
+ADANIENT
+TATAMOTORS
+BAJFINANCE
