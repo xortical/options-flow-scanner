@@ -1,28 +1,233 @@
-# Indian Options Flow Scanner — Watchlist
-# One symbol per line. Lines starting with # are ignored.
-# Indices: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY
-# Equities: use NSE ticker exactly as shown on nseindia.com
+# NSE F&O Complete Watchlist — 181 symbols
+# Extracted from 5paisa.com/fno-list/all — April 2026
+# Lines starting with # are ignored by the scanner
+# NSE reviews this list every 6 months — update accordingly
 
 # ── Indices ──────────────────────────
 NIFTY
 BANKNIFTY
 FINNIFTY
+MIDCPNIFTY
 
-# ── Large Cap ────────────────────────
-RELIANCE
-TCS
-INFY
-HDFCBANK
-ICICIBANK
-SBIN
-WIPRO
-AXISBANK
-KOTAKBANK
-LT
-
-# ── Mid Cap (add/remove freely) ──────
-ZOMATO
-PAYTM
+# ── A ────────────────────────────────
+AARTIIND
+ABB
+ABBOTINDIA
+ABCAPITAL
+ABFRL
+ACC
 ADANIENT
-TATAMOTORS
+ADANIPORTS
+ALKEM
+AMBUJACEM
+APOLLOHOSP
+APOLLOTYRE
+ASHOKLEY
+ASIANPAINT
+ASTRAL
+ATUL
+AUBANK
+AUROPHARMA
+AXISBANK
+
+# ── B ────────────────────────────────
+BAJAJ-AUTO
+BAJAJFINSV
 BAJFINANCE
+BALKRISIND
+BALRAMCHIN
+BANDHANBNK
+BANKBARODA
+BATAINDIA
+BEL
+BERGEPAINT
+BHARATFORG
+BHARTIARTL
+BHEL
+BIOCON
+BOSCHLTD
+BPCL
+BRITANNIA
+BSOFT
+
+# ── C ────────────────────────────────
+CANBK
+CANFINHOME
+CHAMBLFERT
+CHOLAFIN
+CIPLA
+COALINDIA
+COFORGE
+COLPAL
+CONCOR
+COROMANDEL
+CROMPTON
+CUB
+CUMMINSIND
+
+# ── D ────────────────────────────────
+DABUR
+DALBHARAT
+DEEPAKNTR
+DELTACORP
+DIVISLAB
+DIXON
+DLF
+DRREDDY
+
+# ── E ────────────────────────────────
+EICHERMOT
+ESCORTS
+EXIDEIND
+
+# ── F ────────────────────────────────
+FEDERALBNK
+
+# ── G ────────────────────────────────
+GAIL
+GLENMARK
+GNFC
+GODREJCP
+GODREJPROP
+GRANULES
+GRASIM
+GUJGASLTD
+
+# ── H ────────────────────────────────
+HAL
+HAVELLS
+HCLTECH
+HDFCAMC
+HDFCBANK
+HDFCLIFE
+HEROMOTOCO
+HINDALCO
+HINDCOPPER
+HINDPETRO
+HINDUNILVR
+
+# ── I ────────────────────────────────
+ICICIBANK
+ICICIGI
+ICICIPRULI
+IDEA
+IDFCFIRSTB
+IEX
+IGL
+INDHOTEL
+INDIACEM
+INDIAMART
+INDIGO
+INDUSINDBK
+INDUSTOWER
+INFY
+INTELLECT
+IOC
+IPCALAB
+IRCTC
+ITC
+
+# ── J ────────────────────────────────
+JINDALSTEL
+JKCEMENT
+JSWSTEEL
+JUBLFOOD
+
+# ── K ────────────────────────────────
+KOTAKBANK
+
+# ── L ────────────────────────────────
+LALPATHLAB
+LAURUSLABS
+LICHSGFIN
+LT
+LTTS
+LUPIN
+
+# ── M ────────────────────────────────
+M&M
+M&MFIN
+MANAPPURAM
+MARICO
+MARUTI
+MCX
+METROPOLIS
+MFSL
+MGL
+MOTHERSON
+MPHASIS
+MRF
+MUTHOOTFIN
+
+# ── N ────────────────────────────────
+NATIONALUM
+NAUKRI
+NAVINFLUOR
+NESTLEIND
+NMDC
+NTPC
+
+# ── O ────────────────────────────────
+OBEROIRLTY
+OFSS
+ONGC
+
+# ── P ────────────────────────────────
+PAGEIND
+PERSISTENT
+PETRONET
+PFC
+PIDILITIND
+PIIND
+PNB
+POLYCAB
+POWERGRID
+PVRINOX
+
+# ── R ────────────────────────────────
+RAMCOCEM
+RBLBANK
+RECLTD
+RELIANCE
+
+# ── S ────────────────────────────────
+SAIL
+SBICARD
+SBILIFE
+SBIN
+SHREECEM
+SHRIRAMFIN
+SIEMENS
+SRF
+SUNPHARMA
+SUNTV
+SYNGENE
+
+# ── T ────────────────────────────────
+TATACHEM
+TATACOMM
+TATACONSUM
+TATAPOWER
+TATASTEEL
+TCS
+TECHM
+TITAN
+TORNTPHARM
+TRENT
+TVSMOTOR
+
+# ── U ────────────────────────────────
+UBL
+ULTRACEMCO
+UPL
+
+# ── V ────────────────────────────────
+VEDL
+VOLTAS
+
+# ── W ────────────────────────────────
+WIPRO
+
+# ── Z ────────────────────────────────
+ZEEL
+ZYDUSLIFE
