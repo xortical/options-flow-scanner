@@ -96,63 +96,61 @@ def load_watchlist(path: str) -> List[str]:
 # ─────────────────────────────────────────────────────────────────
 # NSE FETCHER
 # ─────────────────────────────────────────────────────────────────
-NSE_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept":          "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer":         "https://www.nseindia.com/",
-    "Connection":      "keep-alive",
-}
+# NSE actively blocks known cloud/datacenter IPs (AWS, GitHub Actions, etc.)
+# Strategy: use jugaad-data which handles NSE sessions robustly,
+# with a fallback to direct NSE API with enhanced headers + retries.
 
 INDICES = {"NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYIT"}
 
-def make_session() -> requests.Session:
-    """NSE needs a live cookie from the homepage before it accepts API calls."""
+# Browser-like headers with multiple User-Agent rotation
+UA_LIST = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+]
+
+def _build_headers(ua_index: int = 0) -> dict:
+    return {
+        "User-Agent":       UA_LIST[ua_index % len(UA_LIST)],
+        "Accept":           "application/json, text/plain, */*",
+        "Accept-Language":  "en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding":  "gzip, deflate, br",
+        "Referer":          "https://www.nseindia.com/option-chain",
+        "Origin":           "https://www.nseindia.com",
+        "sec-ch-ua":        '"Chromium";v="124", "Google Chrome";v="124"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-fetch-dest":   "empty",
+        "sec-fetch-mode":   "cors",
+        "sec-fetch-site":   "same-origin",
+        "Connection":       "keep-alive",
+        "DNT":              "1",
+    }
+
+def make_session(ua_index: int = 0) -> requests.Session:
+    """
+    Build an NSE session with cookies.
+    Visits multiple NSE pages to get a full cookie jar — same as a real browser.
+    """
     s = requests.Session()
-    s.headers.update(NSE_HEADERS)
-    try:
-        s.get("https://www.nseindia.com", timeout=15)
-        time.sleep(1.5)
-        s.get("https://www.nseindia.com/market-data/equity-derivatives-watch", timeout=10)
-        time.sleep(1)
-    except Exception as e:
-        print(f"[WARN] Session warm-up issue: {e}")
+    s.headers.update(_build_headers(ua_index))
+
+    warmup_pages = [
+        "https://www.nseindia.com",
+        "https://www.nseindia.com/option-chain",
+        "https://www.nseindia.com/market-data/equity-derivatives-watch",
+    ]
+    for page in warmup_pages:
+        try:
+            s.get(page, timeout=15)
+            time.sleep(1.5)
+        except Exception:
+            pass
+
     return s
 
-def fetch_chain(symbol: str, session: requests.Session,
-                expiry_min: int, expiry_max: int) -> List[Contract]:
-    """Fetch option chain for one symbol; return contracts filtered by expiry window."""
-    if symbol in INDICES:
-        url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-    else:
-        url = f"https://www.nseindia.com/api/option-chain-equities?symbol={symbol}"
-
-    try:
-        resp = session.get(url, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.exceptions.HTTPError as e:
-        if resp.status_code == 401:
-            print(f"[WARN] {symbol}: session expired, refreshing...")
-            session = make_session()
-            try:
-                resp = session.get(url, timeout=15)
-                data = resp.json()
-            except Exception:
-                print(f"[WARN] {symbol}: retry failed, skipping")
-                return []
-        else:
-            print(f"[WARN] {symbol}: HTTP {resp.status_code}, skipping")
-            return []
-    except Exception as e:
-        print(f"[WARN] {symbol}: {e}, skipping")
-        return []
-
+def _parse_chain_data(data: dict, symbol: str,
+                      expiry_min: int, expiry_max: int) -> List[Contract]:
+    """Parse raw NSE JSON into Contract objects."""
     today = datetime.date.today()
     contracts = []
 
@@ -198,8 +196,70 @@ def fetch_chain(symbol: str, session: requests.Session,
                 oi_change=oi_change,
                 iv=iv,
             ))
-
     return contracts
+
+def _fetch_via_jugaad(symbol: str, expiry_min: int, expiry_max: int) -> List[Contract]:
+    """
+    Primary fetch method: jugaad-data handles NSE sessions robustly
+    and works from cloud IPs better than raw requests.
+    """
+    try:
+        from jugaad_data.nse import NSELive
+        n = NSELive()
+        if symbol in INDICES:
+            raw = n.option_chain(symbol)
+        else:
+            raw = n.equities_option_chain(symbol)
+        return _parse_chain_data(raw, symbol, expiry_min, expiry_max)
+    except ImportError:
+        return []   # jugaad not installed, fall through
+    except Exception as e:
+        print(f"  [jugaad] {symbol}: {e}")
+        return []
+
+def _fetch_via_requests(symbol: str, session: requests.Session,
+                        expiry_min: int, expiry_max: int,
+                        attempt: int = 0) -> List[Contract]:
+    """
+    Fallback fetch: direct NSE API with retry + session refresh.
+    """
+    if symbol in INDICES:
+        url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
+    else:
+        url = f"https://www.nseindia.com/api/option-chain-equities?symbol={symbol}"
+
+    for retry in range(3):
+        try:
+            resp = session.get(url, timeout=20)
+            if resp.status_code == 401 or resp.status_code == 403:
+                # Session rejected — rebuild with different UA
+                print(f"  [requests] {symbol}: HTTP {resp.status_code}, rebuilding session...")
+                session = make_session(ua_index=retry + 1)
+                time.sleep(3 + retry * 2)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            return _parse_chain_data(data, symbol, expiry_min, expiry_max)
+        except Exception as e:
+            print(f"  [requests] {symbol}: attempt {retry+1} failed — {e}")
+            time.sleep(2 + retry * 2)
+
+    return []
+
+def fetch_chain(symbol: str, session: requests.Session,
+                expiry_min: int, expiry_max: int) -> List[Contract]:
+    """
+    Fetch option chain with automatic fallback:
+    1. jugaad-data (best for cloud IPs)
+    2. Direct NSE API with enhanced headers + retries
+    """
+    # Try jugaad first
+    contracts = _fetch_via_jugaad(symbol, expiry_min, expiry_max)
+    if contracts:
+        return contracts
+
+    # Fall back to direct requests
+    return _fetch_via_requests(symbol, session, expiry_min, expiry_max)
 
 
 # ─────────────────────────────────────────────────────────────────
