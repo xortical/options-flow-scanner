@@ -1,15 +1,11 @@
 name: Options Flow Scanner
 
 on:
-  # ── Scheduled runs (times are UTC; IST = UTC+5:30) ─────────────────────
-  # Runs at 9:45 AM, 12:00 PM, and 3:15 PM IST on weekdays
-  # Adjust or add/remove times as you like
   schedule:
     - cron: "15 4 * * 1-5"   # 9:45 AM IST
     - cron: "30 6 * * 1-5"   # 12:00 PM IST
-    - cron: "45 9 * * 1-5"   # 3:15 PM IST  (near close — best for day's full flow)
+    - cron: "45 9 * * 1-5"   # 3:15 PM IST (best run — full day's flow)
 
-  # ── Manual trigger (run anytime from GitHub Actions tab) ────────────────
   workflow_dispatch:
     inputs:
       expiry_min:
@@ -26,25 +22,37 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to commit the report back to the repo
+      contents: write
 
     steps:
-      # 1. Check out repo (includes watchlist.txt)
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 4. Run the scanner
+      - name: Check NSE connectivity
+        run: |
+          echo "=== Testing NSE connectivity ==="
+          curl -s -o /dev/null -w "nseindia.com HTTP status: %{http_code}\n" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            -H "Accept: text/html,application/xhtml+xml" \
+            --max-time 15 \
+            "https://www.nseindia.com" || echo "nseindia.com unreachable"
+          curl -s -o /dev/null -w "NSE API HTTP status: %{http_code}\n" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            -H "Accept: application/json" \
+            -H "Referer: https://www.nseindia.com/" \
+            --max-time 15 \
+            "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY" || echo "NSE API unreachable"
+          echo "================================"
+
       - name: Run scanner
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -56,15 +64,23 @@ jobs:
             --min-score ${{ github.event.inputs.min_score || '35' }} \
             --expiry-days ${{ github.event.inputs.expiry_min || '1' }} ${{ github.event.inputs.expiry_max || '90' }}
 
-      # 5. Commit the generated reports back into the repo
-      #    Reports folder is gitignored for large files; only latest.html/csv committed
+      - name: Show report summary
+        if: always()
+        run: |
+          echo "=== Report summary ==="
+          if [ -f reports/latest.csv ]; then
+            echo "Rows in CSV: $(wc -l < reports/latest.csv)"
+            head -5 reports/latest.csv
+          else
+            echo "No CSV generated"
+          fi
+
       - name: Commit reports
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reports/latest.html reports/latest.csv
-          # Also add timestamped files if they exist (optional — remove if you
-          # don't want history of every run committed)
+          git add reports/latest.html reports/latest.csv 2>/dev/null || true
           git add reports/flow_*.html reports/flow_*.csv 2>/dev/null || true
           git diff --cached --quiet || git commit -m "📊 Flow report $(date -u '+%Y-%m-%d %H:%M') UTC"
           git push
